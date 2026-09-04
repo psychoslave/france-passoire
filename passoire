@@ -1,0 +1,53 @@
+const crypto = require('crypto');
+const https = require('https');
+const readline = require('readline');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: 'password> '
+});
+
+console.log('--- Pwned Passwords REPL (k-anonymity) ---');
+console.log('Saisissez un mot de passe. Tapez "exit" pour quitter.\n');
+
+rl.prompt();
+
+rl.on('line', async (line) => {
+  const input = line.trim();
+  if (input.toLowerCase() === 'exit') { rl.close(); return; }
+  if (!input) { rl.prompt(); return; }
+
+  try {
+    await checkPassword(input);
+  } catch (err) {
+    console.error(`[Erreur] ${err.message}`);
+  }
+  rl.prompt();
+}).on('close', () => {
+  console.log('\nDéconnexion. Restez en sécurité !');
+  process.exit(0);
+});
+
+function checkPassword(password) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha1').update(password).digest('hex').toUpperCase();
+    const prefix = hash.substring(0, 5);
+    const suffix = hash.substring(5);
+
+    https.get(`https://api.pwnedpasswords.com/range/${prefix}`, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        const lines = data.split('\n');
+        const match = lines.find(l => l.split(':')[0] === suffix);
+        if (match) {
+          console.log(`\x1b[31m[COMPROMIS]\x1b[0m Apparu ${match.split(':')[1].trim()} fois.`);
+        } else {
+          console.log(`\x1b[32m[SAIN]\x1b[0m Aucune correspondance trouvée.`);
+        }
+        resolve();
+      });
+    }).on('error', reject);
+  });
+}
