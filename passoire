@@ -1,35 +1,323 @@
+#!/usr/bin/env node
+
 const crypto = require('crypto');
 const https = require('https');
 const readline = require('readline');
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-  prompt: 'password> '
-});
+const messages = {
+  en: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Enter a password. Press Ctrl+C or Ctrl+D to quit.',
+    prompt: 'password> ',
+    empty: 'Please enter a password.',
+    goodbye: 'Goodbye.',
+    safe: '[SAFE] No match found.',
+    compromised: '[COMPROMISED] Appeared %count% times.',
+    error: '[Error] %message%',
+    disconnected: 'Disconnected. Stay safe!',
+  },
+  fr: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Saisissez un mot de passe. Appuyez sur Ctrl+C ou Ctrl+D pour quitter.',
+    prompt: 'mot de passe> ',
+    empty: 'Veuillez saisir un mot de passe.',
+    goodbye: 'Au revoir.',
+    safe: '[SAIN] Aucune correspondance trouvée.',
+    compromised: '[COMPROMIS] Apparu %count% fois.',
+    error: '[Erreur] %message%',
+    disconnected: 'Déconnexion. Restez en sécurité !',
+  },
+  de: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Geben Sie ein Passwort ein. Drücken Sie Ctrl+C oder Ctrl+D, um zu beenden.',
+    prompt: 'passwort> ',
+    empty: 'Bitte geben Sie ein Passwort ein.',
+    goodbye: 'Auf Wiedersehen.',
+    safe: '[SICHER] Keine Übereinstimmung gefunden.',
+    compromised: '[KOMPROMITTIERT] %count% Mal aufgetaucht.',
+    error: '[Fehler] %message%',
+    disconnected: 'Verbindung getrennt. Bleiben Sie sicher!',
+  },
+  es: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Introduce una contraseña. Pulsa Ctrl+C o Ctrl+D para salir.',
+    prompt: 'contraseña> ',
+    empty: 'Introduce una contraseña.',
+    goodbye: 'Adiós.',
+    safe: '[SEGURA] No se encontró ninguna coincidencia.',
+    compromised: '[COMPROMETIDA] Apareció %count% veces.',
+    error: '[Error] %message%',
+    disconnected: 'Desconectado. ¡Mantente a salvo!',
+  },
+  it: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Inserisci una password. Premi Ctrl+C o Ctrl+D per uscire.',
+    prompt: 'password> ',
+    empty: 'Inserisci una password.',
+    goodbye: 'Arrivederci.',
+    safe: '[SICURA] Nessuna corrispondenza trovata.',
+    compromised: '[COMPROMESSA] Apparsa %count% volte.',
+    error: '[Errore] %message%',
+    disconnected: 'Disconnesso. Stai al sicuro!',
+  },
+  pt: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Introduza uma palavra-passe. Prima Ctrl+C ou Ctrl+D para sair.',
+    prompt: 'palavra-passe> ',
+    empty: 'Introduza uma palavra-passe.',
+    goodbye: 'Adeus.',
+    safe: '[SEGURA] Nenhuma correspondência encontrada.',
+    compromised: '[COMPROMETIDA] Apareceu %count% vezes.',
+    error: '[Erro] %message%',
+    disconnected: 'Desligado. Mantenha-se em segurança!',
+  },
+  nl: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Voer een wachtwoord in. Druk op Ctrl+C of Ctrl+D om af te sluiten.',
+    prompt: 'wachtwoord> ',
+    empty: 'Voer een wachtwoord in.',
+    goodbye: 'Tot ziens.',
+    safe: '[VEILIG] Geen overeenkomst gevonden.',
+    compromised: '[KOMPROMETTEERD] %count% keer gevonden.',
+    error: '[Fout] %message%',
+    disconnected: 'Verbinding verbroken. Blijf veilig!',
+  },
+  da: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Indtast en adgangskode. Tryk Ctrl+C eller Ctrl+D for at afslutte.',
+    prompt: 'adgangskode> ',
+    empty: 'Indtast en adgangskode.',
+    goodbye: 'Farvel.',
+    safe: '[SIKKER] Ingen match fundet.',
+    compromised: '[KOMPROMITTERET] Fundet %count% gange.',
+    error: '[Fejl] %message%',
+    disconnected: 'Afbrudt. Bliv sikker!',
+  },
+  sv: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Ange ett lösenord. Tryck Ctrl+C eller Ctrl+D för att avsluta.',
+    prompt: 'lösenord> ',
+    empty: 'Ange ett lösenord.',
+    goodbye: 'Hej då.',
+    safe: '[SÄKER] Ingen träff hittades.',
+    compromised: '[KOMPROMISSERAD] Visades %count% gånger.',
+    error: '[Fel] %message%',
+    disconnected: 'Frånkopplad. Håll dig säker!',
+  },
+  fi: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Syötä salasana. Paina Ctrl+C tai Ctrl+D poistuaksesi.',
+    prompt: 'salasana> ',
+    empty: 'Syötä salasana.',
+    goodbye: 'Näkemiin.',
+    safe: '[TURVALLINEN] Ei vastaavuutta löytynyt.',
+    compromised: '[KOMPROMISOITU] Ilmeni %count% kertaa.',
+    error: '[Virhe] %message%',
+    disconnected: 'Yhteys katkaistu. Pysy turvassa!',
+  },
+  et: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Sisesta parool. Väljumiseks vajuta Ctrl+C või Ctrl+D.',
+    prompt: 'parool> ',
+    empty: 'Sisesta parool.',
+    goodbye: 'Head aega.',
+    safe: '[TURVALINE] Vastet ei leitud.',
+    compromised: '[KOMPROMITEERITUD] Esines %count% korda.',
+    error: '[Viga] %message%',
+    disconnected: 'Ühendus katkenud. Ole turvaline!',
+  },
+  lv: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Ievadiet paroli. Nospiediet Ctrl+C vai Ctrl+D, lai izietu.',
+    prompt: 'parole> ',
+    empty: 'Ievadiet paroli.',
+    goodbye: 'Uz redzēšanos.',
+    safe: '[DROŠS] Nav atrasts sadalījums.',
+    compromised: '[KOMPROMITĒTS] Parādījās %count% reizes.',
+    error: '[Kļūda] %message%',
+    disconnected: 'Atvienots. Esiet drošs!',
+  },
+  lt: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Įveskite slaptažodį. Paspauskite Ctrl+C arba Ctrl+D, kad išeitumėte.',
+    prompt: 'slaptažodis> ',
+    empty: 'Įveskite slaptažodį.',
+    goodbye: 'Viso gero.',
+    safe: '[SAUGUS] Atitikmenų nerasta.',
+    compromised: '[PAKOMPRIMUOTAS] Pasirodė %count% kartų.',
+    error: '[Klaida] %message%',
+    disconnected: 'Atsijungta. Būkite saugūs!',
+  },
+  pl: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Wprowadź hasło. Naciśnij Ctrl+C lub Ctrl+D, aby wyjść.',
+    prompt: 'hasło> ',
+    empty: 'Wprowadź hasło.',
+    goodbye: 'Do widzenia.',
+    safe: '[BEZPIECZNE] Nie znaleziono dopasowania.',
+    compromised: '[ZŁAMANE] Pojawiło się %count% razy.',
+    error: '[Błąd] %message%',
+    disconnected: 'Rozłączono. Zachowaj ostrożność!',
+  },
+  cs: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Zadejte heslo. Stiskněte Ctrl+C nebo Ctrl+D pro ukončení.',
+    prompt: 'heslo> ',
+    empty: 'Zadejte heslo.',
+    goodbye: 'Nashledanou.',
+    safe: '[BEZPEČNÉ] Nenašla se žádná shoda.',
+    compromised: '[KOMPROMITOVANÉ] Objevilo se %count% krát.',
+    error: '[Chyba] %message%',
+    disconnected: 'Odpojeno. Buďte v bezpečí!',
+  },
+  sk: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Zadajte heslo. Stlačte Ctrl+C alebo Ctrl+D pre ukončenie.',
+    prompt: 'heslo> ',
+    empty: 'Zadajte heslo.',
+    goodbye: 'Dovidenia.',
+    safe: '[BEZPEČNÉ] Nebola nájdená zhoda.',
+    compromised: '[KOMPROMITOVANÉ] Vyskytlo sa %count% krát.',
+    error: '[Chyba] %message%',
+    disconnected: 'Odpojené. Buďte v bezpečí!',
+  },
+  sl: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Vnesite geslo. Pritisnite Ctrl+C ali Ctrl+D za izhod.',
+    prompt: 'geslo> ',
+    empty: 'Vnesite geslo.',
+    goodbye: 'Nasvidenje.',
+    safe: '[VARNO] Nismo našli ujemanja.',
+    compromised: '[KOMPROMITIRANO] Se je pojavilo %count% krat.',
+    error: '[Napaka] %message%',
+    disconnected: 'Odklopljeno. Ostanite varni!',
+  },
+  hr: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Unesite lozinku. Pritisnite Ctrl+C ili Ctrl+D za izlaz.',
+    prompt: 'lozinka> ',
+    empty: 'Unesite lozinku.',
+    goodbye: 'Doviđenja.',
+    safe: '[SIGURNO] Nije pronađen nijedan podudaranje.',
+    compromised: '[KOMPROMITIRANO] Pojavilo se %count% puta.',
+    error: '[Pogreška] %message%',
+    disconnected: 'Odspojeno. Ostanite sigurni!',
+  },
+  bg: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Въведете парола. Натиснете Ctrl+C или Ctrl+D, за да излезете.',
+    prompt: 'парола> ',
+    empty: 'Моля, въведете парола.',
+    goodbye: 'Довиждане.',
+    safe: '[БЕЗОПАСНО] Няма открито съвпадение.',
+    compromised: '[КОМПРОМЕТИРАНО] Появи се %count% пъти.',
+    error: '[Грешка] %message%',
+    disconnected: 'Изключено. Бъдете в безопасност!',
+  },
+  el: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Εισαγάγετε κωδικό. Πατήστε Ctrl+C ή Ctrl+D για έξοδο.',
+    prompt: 'κωδικός> ',
+    empty: 'Εισαγάγετε κωδικό.',
+    goodbye: 'Αντίο.',
+    safe: '[ΑΣΦΑΛΕΣ] Δεν βρέθηκε αντιστοίχιση.',
+    compromised: '[ΕΚΘΕΣΜΕΝΟ] Εμφανίστηκε %count% φορές.',
+    error: '[Σφάλμα] %message%',
+    disconnected: 'Αποσυνδέθηκε. Μείνετε ασφαλείς!',
+  },
+  hu: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Írja be a jelszót. Nyomja meg a Ctrl+C vagy Ctrl+D billentyűt a kilépéshez.',
+    prompt: 'jelszó> ',
+    empty: 'Kérem, írja be a jelszót.',
+    goodbye: 'Viszlát.',
+    safe: '[BIZTONSÁGOS] Nincs találat.',
+    compromised: '[KOMPROMITTÁLT] %count% alkalommal jelent meg.',
+    error: '[Hiba] %message%',
+    disconnected: 'Bontva. Maradjon biztonságban!',
+  },
+  ga: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Cuir isteach pasfhocal. Brúigh Ctrl+C nó Ctrl+D chun scoir.',
+    prompt: 'pasfhocal> ',
+    empty: 'Cuir isteach pasfhocal.',
+    goodbye: 'Slán.',
+    safe: '[SLÁN] Níor aimsíodh meaitseáil.',
+    compromised: '[SÁRÚ] Tháinig sé chun cinn %count% uair.',
+    error: '[Earráid] %message%',
+    disconnected: 'Dícheangailte. Fan slán!',
+  },
+  ro: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Introduceți o parolă. Apăsați Ctrl+C sau Ctrl+D pentru a ieși.',
+    prompt: 'parolă> ',
+    empty: 'Introduceți o parolă.',
+    goodbye: 'La revedere.',
+    safe: '[SIGURĂ] Nu s-a găsit nicio potrivire.',
+    compromised: '[COMPROMISĂ] A apărut de %count% ori.',
+    error: '[Eroare] %message%',
+    disconnected: 'Deconectat. Rămâneți în siguranță!',
+  },
+  mt: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Daħħal password. Agħfas Ctrl+C jew Ctrl+D biex toħroġ.',
+    prompt: 'password> ',
+    empty: 'Jekk jogħġbok daħħal password.',
+    goodbye: 'Saħħa.',
+    safe: '[SIGUR] Ma nstab l-ebda tqabbil.',
+    compromised: '[KOMPROMESS] deher %count% darbiet.',
+    error: '[Żball] %message%',
+    disconnected: 'Skonnett. Ibqa’ sigur!',
+  },
+  eo: {
+    title: '--- Pwned Passwords REPL (k-anonymity) ---',
+    intro: 'Enigu pasvorton. Tajpu Ctrl+C aŭ Ctrl+D por eliri.',
+    prompt: 'pasvorto> ',
+    empty: 'Bonvolu enigi pasvorton.',
+    goodbye: 'Adiaŭ.',
+    safe: '[SEKURA] Neniu kongruo trovita.',
+    compromised: '[KOMPROMITITA] Aperis %count% fojojn.',
+    error: '[Eraro] %message%',
+    disconnected: 'Malkonektita. Restu sekura!',
+  },
+};
 
-console.log('--- Pwned Passwords REPL (k-anonymity) ---');
-console.log('Saisissez un mot de passe. Tapez "exit" pour quitter.\n');
+function detectLocale() {
+  const sources = [
+    process.env.LC_ALL,
+    process.env.LC_MESSAGES,
+    process.env.LANG,
+    process.env.LANGUAGE,
+  ];
 
-rl.prompt();
+  const seen = new Set();
 
-rl.on('line', async (line) => {
-  const input = line.trim();
-  if (input.toLowerCase() === 'exit') { rl.close(); return; }
-  if (!input) { rl.prompt(); return; }
+  for (const source of sources) {
+    if (!source) continue;
 
-  try {
-    await checkPassword(input);
-  } catch (err) {
-    console.error(`[Erreur] ${err.message}`);
+    for (const token of source.split(':')) {
+      const normalized = token.trim().split(/[._@-]/)[0].toLowerCase();
+      if (!normalized || seen.has(normalized)) continue;
+      seen.add(normalized);
+
+      if (messages[normalized]) {
+        return normalized;
+      }
+    }
   }
-  rl.prompt();
-}).on('close', () => {
-  console.log('\nDéconnexion. Restez en sécurité !');
-  process.exit(0);
-});
 
-function checkPassword(password) {
+  return 'en';
+}
+
+function formatMessage(locale, key, values = {}) {
+  const template = (messages[locale] && messages[locale][key]) || messages.en[key];
+  return template.replace(/%([A-Za-z0-9_]+)%/g, (_, name) => {
+    const value = values[name];
+    return value === undefined ? `%${name}%` : String(value);
+  });
+}
+
+function checkPassword(password, locale) {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('sha1').update(password).digest('hex').toUpperCase();
     const prefix = hash.substring(0, 5);
@@ -37,17 +325,113 @@ function checkPassword(password) {
 
     https.get(`https://api.pwnedpasswords.com/range/${prefix}`, (res) => {
       let data = '';
-      res.on('data', (chunk) => data += chunk);
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
       res.on('end', () => {
         const lines = data.split('\n');
-        const match = lines.find(l => l.split(':')[0] === suffix);
+        const match = lines.find((line) => line.split(':')[0] === suffix);
+
         if (match) {
-          console.log(`\x1b[31m[COMPROMIS]\x1b[0m Apparu ${match.split(':')[1].trim()} fois.`);
-        } else {
-          console.log(`\x1b[32m[SAIN]\x1b[0m Aucune correspondance trouvée.`);
+          const count = Number(match.split(':')[1].trim() || '0');
+          resolve({ compromised: true, count });
+          return;
         }
-        resolve();
+
+        resolve({ compromised: false, count: 0 });
       });
     }).on('error', reject);
   });
 }
+
+function run() {
+  const locale = detectLocale();
+  const args = process.argv.slice(2);
+
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log('Usage: passoire [--phanerographic] [--help]');
+    console.log('');
+    console.log('Options:');
+    console.log('  --phanerographic  Show the raw input value in batch output.');
+    console.log('  --help            Show this help message.');
+    return;
+  }
+
+  const showInput = args.includes('--phanerographic');
+  const isInteractive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  let batchIndex = 0;
+  let processingQueue = Promise.resolve();
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: isInteractive,
+  });
+
+  if (isInteractive) {
+    rl.on('SIGINT', () => {
+      rl.close();
+    });
+
+    rl.setPrompt(formatMessage(locale, 'prompt'));
+
+    console.log(formatMessage(locale, 'title'));
+    console.log(`${formatMessage(locale, 'intro')}\n`);
+    rl.prompt();
+  }
+
+  rl.on('line', (line) => {
+    processingQueue = processingQueue.then(async () => {
+      const input = line.trim();
+
+      if (!input) {
+        if (isInteractive) {
+          console.log(formatMessage(locale, 'empty'));
+          rl.prompt();
+        }
+        return;
+      }
+
+      try {
+        const result = await checkPassword(input, locale);
+
+        if (isInteractive) {
+          if (result.compromised) {
+            console.log(formatMessage(locale, 'compromised', { count: result.count }));
+          } else {
+            console.log(formatMessage(locale, 'safe'));
+          }
+        } else {
+          batchIndex += 1;
+          const status = result.compromised
+            ? formatMessage(locale, 'compromised', { count: result.count })
+            : formatMessage(locale, 'safe');
+          const value = showInput ? `: ${input}` : '';
+          console.log(`${batchIndex}${value}: ${status}`);
+        }
+      } catch (err) {
+        console.error(formatMessage(locale, 'error', { message: err.message }));
+      }
+
+      if (isInteractive) {
+        rl.prompt();
+      }
+    });
+  }).on('close', async () => {
+    await processingQueue;
+    if (isInteractive) {
+      console.log(`\n${formatMessage(locale, 'disconnected')}`);
+    }
+  });
+}
+
+if (require.main === module) {
+  run();
+}
+
+module.exports = {
+  detectLocale,
+  formatMessage,
+  checkPassword,
+};
